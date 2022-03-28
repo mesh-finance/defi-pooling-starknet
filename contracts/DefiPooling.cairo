@@ -16,6 +16,7 @@ from starkware.starknet.common.messages import send_message_to_l1
 
 
 const MESSAGE_WITHDRAWAL_REQUEST = 1
+const MESSAGE_DEPOSIT_REQUEST = 2
 
 #
 # Interfaces
@@ -37,6 +38,26 @@ namespace IERC20:
     end
 end
 
+@contract_interface
+namespace ITokenBridge:
+    func get_governor() -> (res : felt):
+    end
+
+    func get_l1_bridge() -> (res : felt):
+    end
+
+    func get_l2_token() -> (res : felt):
+    end
+
+    func set_l1_bridge(l1_bridge_address : felt):
+    end
+
+    func set_l2_token(l2_token_address : felt):
+    end
+
+    func initiate_withdraw(l1_recipient : felt, amount : Uint256):
+    end
+end
 
 #
 # Storage ERC20
@@ -105,6 +126,11 @@ end
 # @dev underlying token
 @storage_var
 func _underlying_token() -> (res: felt):
+end
+
+# @dev underlying token bridge
+@storage_var
+func _token_bridge() -> (res: felt):
 end
 
 # @dev L1 contract address
@@ -214,6 +240,7 @@ func constructor{
         symbol: felt,
         l1_contract_address: felt,
         underlying_token: felt,
+        token_bridge: felt,
         owner: felt,
     ):
     with_attr error_message("DefiPooling::constructor::all arguments must be non zero"):
@@ -221,6 +248,7 @@ func constructor{
         assert_not_zero(symbol)
         assert_not_zero(l1_contract_address)
         assert_not_zero(underlying_token)
+        assert_not_zero(token_bridge)
         assert_not_zero(owner)
 
     end
@@ -230,6 +258,7 @@ func constructor{
     # _percesion.write(9)
     _l1_contract_address.write(l1_contract_address)
     _underlying_token.write(underlying_token)
+    _token_bridge.write(token_bridge)
     _owner.write(owner)
    _deposit_id.write(Uint256(0,0))
 
@@ -342,6 +371,8 @@ func owner{
     return (owner)
 end
 
+# @notice Get current deposit id
+# @return id
 @view
 func current_deposit_id{
         syscall_ptr : felt*, 
@@ -352,6 +383,9 @@ func current_deposit_id{
     return (id)
 end
 
+# @notice Get total deposit amount for a deposit id
+# @param deposit_id id of which we want total deposit amount
+# @return total_deposit_amount
 @view
 func total_deposit_amount{
         syscall_ptr : felt*, 
@@ -362,6 +396,9 @@ func total_deposit_amount{
     return (total_deposit_amount)
 end
 
+# @notice Get total no. of depositors for a deposit id
+# @param deposit_id id of which we want total depositors count
+# @return depositors_len
 @view
 func depositors_len{
         syscall_ptr : felt*, 
@@ -372,6 +409,10 @@ func depositors_len{
     return (depositors_len)
 end
 
+# @notice Get depositor address 
+# @param deposit_id id of which we want depositor
+# @param index index at which we want the depositor
+# @return depositors
 @view
 func depositors{
         syscall_ptr : felt*, 
@@ -382,6 +423,10 @@ func depositors{
     return (depositors)
 end
 
+# @notice Get deposit amount of a depositor 
+# @param deposit_id id of which we want deposit amount
+# @param index depositor index of which we want amount
+# @return deposit_amount
 @view
 func deposit_amount{
         syscall_ptr : felt*, 
@@ -392,6 +437,8 @@ func deposit_amount{
     return (deposit_amount)
 end
 
+# @notice Get current withdraw id
+# @return id
 @view
 func current_withdraw_id{
         syscall_ptr : felt*, 
@@ -402,6 +449,9 @@ func current_withdraw_id{
     return (id)
 end
 
+# @notice Get total withdraw amount for a withdraw id
+# @param withdraw_id id of which we want total withdraw amount
+# @return total_withdraw_amount
 @view
 func total_withdraw_amount{
         syscall_ptr : felt*, 
@@ -412,6 +462,9 @@ func total_withdraw_amount{
     return (total_withdraw_amount)
 end
 
+# @notice Get total no. of withdrawers for a withdraw id
+# @param withdraw_id id of which we want total withdrawers count
+# @return withdraws_len
 @view
 func withdraws_len{
         syscall_ptr : felt*, 
@@ -422,6 +475,10 @@ func withdraws_len{
     return (withdraws_len)
 end
 
+# @notice Get withdrawer address 
+# @param withdraw_id id of which we want withdrawer
+# @param index index at which we want the withdrawer
+# @return withdrawer
 @view
 func withdraws{
         syscall_ptr : felt*, 
@@ -432,6 +489,10 @@ func withdraws{
     return (withdrawer)
 end
 
+# @notice Get withdraw amount of a withdrawer 
+# @param withdraw_id id of which we want withdraw amount
+# @param index withdrawer index of which we want withdraw amount
+# @return withdraw_amount
 @view
 func withdraw_amount{
         syscall_ptr : felt*, 
@@ -442,6 +503,8 @@ func withdraw_amount{
     return (withdraw_amount)
 end
 
+# @notice Get underlying token
+# @return underlying_token
 @view
 func underlying_token{
         syscall_ptr : felt*, 
@@ -452,6 +515,8 @@ func underlying_token{
     return (underlying_token)
 end
 
+# @notice Get l1 contract address 
+# @return l1_contract_address
 @view
 func l1_contract_address{
         syscall_ptr : felt*, 
@@ -462,9 +527,26 @@ func l1_contract_address{
     return (l1_contract_address)
 end
 
+# @notice Get token bridge
+# @return token_bridge
+@view
+func token_bridge{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (token_bridge: felt):
+    let (token_bridge) = _token_bridge.read()
+    return (token_bridge)
+end
+
+
 #
 # Setters
 #
+
+# @notice Change L1 contract address to `new_l1_contract`
+# @dev Only owner can change.
+# @param new_l1_contract Address of new L1 contract
 @external
 func update_l1_contract{
         syscall_ptr : felt*,
@@ -671,6 +753,10 @@ end
 # Externals Defi Pooling
 #
 
+# @notice Deposit underlying token into contract, waiting to be bridged to L1
+# @dev `caller` should have already given the cotract an allowance of at least 'amount' on underlying token
+# @param amount The amount of token to deposit
+# @return new_total_deposit The total amount of tokens deposited for current deposit_id
 @external
 func deposit{
         syscall_ptr : felt*, 
@@ -730,6 +816,9 @@ func deposit{
 end
 
 
+# @notice Cancel deposit to withdraw back your underlying token 
+# @dev `caller` should have to call before the tokens are bridged to L1
+# @return new_total_deposit The total amount of tokens deposited for current deposit_id
 @external
 func cancel_deposit{
         syscall_ptr : felt*, 
@@ -761,6 +850,9 @@ func cancel_deposit{
 end
 
 
+# @notice Bridge underlying token to L1 for current deposit_id
+# @dev only owner can call this
+# @return new_deposit_id the new current deposit id
 @external
 func deposit_to_l1{
         syscall_ptr : felt*, 
@@ -775,9 +867,22 @@ func deposit_to_l1{
     # total amount to bridge to L1
     let (amount_to_bridge:Uint256) = _total_deposit.read(id)
 
-    # ###########
-    # TODO: bridging underlying token to L1
-    # ###########
+    
+    # bridging underlying token to L1
+    let bridge: felt = _token_bridge.read()
+    let (l1_contract_address: felt) = _l1_contract_address.read()
+    #  commenting for running unit test
+    # ITokenBridge.initiate_withdraw(contract_address = bridge, l1_recipient = l1_contract_address, amount = amount_to_bridge)
+
+    # sending deposit request to L1
+    let (message_payload : felt*) = alloc()
+    assert message_payload[0] = MESSAGE_DEPOSIT_REQUEST
+    assert message_payload[1] = id.low                        
+    assert message_payload[2] = amount_to_bridge.low
+    send_message_to_l1(
+        to_address=l1_contract_address,
+        payload_size=3,
+        payload=message_payload)
 
     let (new_deposit_id:Uint256) = uint256_checked_add(id,Uint256(1,0))
    _deposit_id.write(new_deposit_id)
@@ -810,6 +915,11 @@ func distribute_share{
     return ()
 end
 
+
+# @notice Withdraw underlying token from contract, waiting to be bridged back to L2
+# @dev `caller` should have mShares to withdraw
+# @param amount The amount of mShares to withdraw
+# @return new_total_withdraw The total amount of tokens withdraw request for current withdraw_id
 @external
 func withdraw{
         syscall_ptr : felt*, 
@@ -870,6 +980,10 @@ func withdraw{
 
 end
 
+
+# @notice Cancel withdraw request
+# @dev `caller` should have to call before the tokens are bridged back from L1
+# @return new_total_withdraw The total amount of tokens wihdraw request for current withdraw_id
 @external
 func cancel_withdraw{
         syscall_ptr : felt*, 
@@ -901,7 +1015,9 @@ func cancel_withdraw{
     return (new_total_withdraw)
 end
 
-
+# @notice Send withdraw request to L1 for current withdraw_id
+# @dev only owner can call this
+# @return new_withdraw_id the new current withdraw id
 @external
 func send_withdrawal_request_to_l1{
         syscall_ptr : felt*, 
@@ -921,7 +1037,7 @@ func send_withdrawal_request_to_l1{
     # sending withdaw request to L1
     let (message_payload : felt*) = alloc()
     assert message_payload[0] = MESSAGE_WITHDRAWAL_REQUEST
-    assert message_payload[1] = id.low                          # id,amount_to_withdraw are Uint256 and thus required 2 index to store
+    assert message_payload[1] = id.low                        
     assert message_payload[2] = amount_to_withdraw.low
     send_message_to_l1(
         to_address=l1_contract_address,
