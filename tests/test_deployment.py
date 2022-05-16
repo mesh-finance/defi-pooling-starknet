@@ -13,7 +13,7 @@ async def test_defi_pooling(defiPooling,token_0,deployer,token_name,token_symbol
     assert execution_info.result[0] == 18
     execution_info = await defiPooling.owner().call()
     assert execution_info.result[0] == deployer_account.contract_address
-    execution_info = await defiPooling.underlying_token().call()
+    execution_info = await defiPooling.asset().call()
     assert execution_info.result[0] == token_0.contract_address
     execution_info = await defiPooling.token_bridge().call()
     assert execution_info.result[0] == token_bridge.contract_address

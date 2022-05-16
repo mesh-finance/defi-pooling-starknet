@@ -17,7 +17,6 @@ from starkware.starknet.common.messages import send_message_to_l1
 
 const MESSAGE_WITHDRAWAL_REQUEST = 1
 const MESSAGE_DEPOSIT_REQUEST = 2
-const PRECISION = 1000000000
 
 #
 # Interfaces
@@ -124,12 +123,12 @@ end
 # Storage DefiPooling
 #
 
-# @dev asset
+# @dev underlying token
 @storage_var
-func _asset() -> (res: felt):
+func _underlying_token() -> (res: felt):
 end
 
-# @dev asset token bridge
+# @dev underlying token bridge
 @storage_var
 func _token_bridge() -> (res: felt):
 end
@@ -142,69 +141,53 @@ end
 
 # @dev total deposit for each deposit to L1
 @storage_var
-func _total_deposit(deposit_id: felt) -> (res: Uint256):
+func _total_deposit(deposit_id: Uint256) -> (res: Uint256):
 end
 
 # @dev deposit id
 @storage_var
-func _deposit_id() -> (id: felt):
+func _deposit_id() -> (id: Uint256):
 end
 
 # @dev array to store all the depositor address
 @storage_var
-func _depositors(deposit_id: felt, index: felt) -> ( depositors: felt):
+func _depositors(deposit_id: Uint256, index: felt) -> ( depositors: felt):
 end
 
 # @dev array to store all the depositor address
 @storage_var
-func _depositors_len(deposit_id: felt) -> (res: felt):
+func _depositors_len(deposit_id: Uint256) -> (res: felt):
 end
 
 # @dev array to store depositor info
 @storage_var
-func _deposit_amount(deposit_id: felt, depositor: felt) -> (amount: Uint256):
-end
-
-# @dev mapping to store distributed shares info
-@storage_var
-func _shares_distributed(deposit_id: felt) -> (res: Uint256):
+func _deposit_amount(deposit_id: Uint256, depositor: felt) -> (amount: Uint256):
 end
 
 # @dev total withdraw for each withdraw call to L1
 @storage_var
-func _total_withdraw(withdraw_id: felt) -> (res: Uint256):
+func _total_withdraw(withdraw_id: Uint256) -> (res: Uint256):
 end
 
 # @dev withdraw id
 @storage_var
-func _withdraw_id() -> (id: felt):
+func _withdraw_id() -> (id: Uint256):
 end
 
 # @dev array to store all the withdraw address
 @storage_var
-func _withdraws(withdraw_id: felt,index:felt) -> (withdraws: felt):
+func _withdraws(withdraw_id: Uint256,index:felt) -> (withdraws: felt):
 end
 
 # @dev array to store all the withdraw address
 @storage_var
-func _withdraws_len(withdraw_id: felt) -> (withdraws_len: felt):
+func _withdraws_len(withdraw_id: Uint256) -> (withdraws_len: felt):
 end
 
 # @dev array to store withdraw info
 @storage_var
-func _withdraw_amount(withdraw_id: felt, withdrawer: felt) -> (amount: Uint256):
+func _withdraw_amount(withdraw_id: Uint256, withdrawer: felt) -> (amount: Uint256):
 end
-
-# @dev mapping to store distributed assets info
-@storage_var
-func _assets_distributed(withdraw_id: felt) -> (res: Uint256):
-end
-
-# @dev assets per share
-@storage_var
-func _assets_per_share() -> (res: Uint256):
-end
-
 
 # @notice An event emitted whenever token is transferred.
 @event
@@ -256,7 +239,7 @@ func constructor{
         name: felt,
         symbol: felt,
         l1_contract_address: felt,
-        asset: felt,
+        underlying_token: felt,
         token_bridge: felt,
         owner: felt,
     ):
@@ -264,7 +247,7 @@ func constructor{
         assert_not_zero(name)
         assert_not_zero(symbol)
         assert_not_zero(l1_contract_address)
-        assert_not_zero(asset)
+        assert_not_zero(underlying_token)
         assert_not_zero(token_bridge)
         assert_not_zero(owner)
 
@@ -274,13 +257,12 @@ func constructor{
     _decimals.write(18)
     # _percesion.write(9)
     _l1_contract_address.write(l1_contract_address)
-    _asset.write(asset)
+    _underlying_token.write(underlying_token)
     _token_bridge.write(token_bridge)
     _owner.write(owner)
-   _deposit_id.write(0)
+   _deposit_id.write(Uint256(0,0))
 
-    _depositors_len.write(0,0)
-    _assets_per_share.write(Uint256(0,0))
+    _depositors_len.write(Uint256(0,0),0)
     #_withdraws_len.write(Uint256(0,0),0)
 
 # ********** method 2****************    
@@ -396,8 +378,8 @@ func current_deposit_id{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }() -> (id: felt):
-    let (id:felt) =_deposit_id.read()
+    }() -> (id: Uint256):
+    let (id:Uint256) =_deposit_id.read()
     return (id)
 end
 
@@ -409,7 +391,7 @@ func total_deposit_amount{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(deposit_id: felt) -> (total_deposit_amount: Uint256):
+    }(deposit_id: Uint256) -> (total_deposit_amount: Uint256):
     let (total_deposit_amount: Uint256) = _total_deposit.read(deposit_id)
     return (total_deposit_amount)
 end
@@ -422,7 +404,7 @@ func depositors_len{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(deposit_id: felt) -> (depositors_len: felt):
+    }(deposit_id: Uint256) -> (depositors_len: felt):
     let (depositors_len: felt) = _depositors_len.read(deposit_id)
     return (depositors_len)
 end
@@ -436,7 +418,7 @@ func depositors{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(deposit_id: felt, index:felt) -> (depositors: felt):
+    }(deposit_id: Uint256, index:felt) -> (depositors: felt):
     let (depositors: felt) = _depositors.read(deposit_id,index)
     return (depositors)
 end
@@ -450,7 +432,7 @@ func deposit_amount{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(deposit_id: felt, depositor:felt) -> (deposit_amount: Uint256):
+    }(deposit_id: Uint256, depositor:felt) -> (deposit_amount: Uint256):
     let (deposit_amount: Uint256) = _deposit_amount.read(deposit_id,depositor)
     return (deposit_amount)
 end
@@ -462,8 +444,8 @@ func current_withdraw_id{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }() -> (id: felt):
-    let (id:felt) =_withdraw_id.read()
+    }() -> (id: Uint256):
+    let (id:Uint256) =_withdraw_id.read()
     return (id)
 end
 
@@ -475,7 +457,7 @@ func total_withdraw_amount{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(withdraw_id: felt) -> (total_withdraw_amount: Uint256):
+    }(withdraw_id: Uint256) -> (total_withdraw_amount: Uint256):
     let (total_withdraw_amount: Uint256) = _total_withdraw.read(withdraw_id)
     return (total_withdraw_amount)
 end
@@ -488,7 +470,7 @@ func withdraws_len{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(withdraw_id: felt) -> (withdraws_len: felt):
+    }(withdraw_id: Uint256) -> (withdraws_len: felt):
     let (withdraws_len: felt) = _withdraws_len.read(withdraw_id)
     return (withdraws_len)
 end
@@ -502,7 +484,7 @@ func withdraws{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(withdraw_id: felt, index:felt) -> (withdrawer: felt):
+    }(withdraw_id: Uint256, index:felt) -> (withdrawer: felt):
     let (withdrawer: felt) = _withdraws.read(withdraw_id,index)
     return (withdrawer)
 end
@@ -516,21 +498,21 @@ func withdraw_amount{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }(withdraw_id: felt, withdrawer:felt) -> (withdraw_amount: Uint256):
+    }(withdraw_id: Uint256, withdrawer:felt) -> (withdraw_amount: Uint256):
     let (withdraw_amount: Uint256) = _withdraw_amount.read(withdraw_id,withdrawer)
     return (withdraw_amount)
 end
 
-# @notice Get asset token
-# @return asset_token
+# @notice Get underlying token
+# @return underlying_token
 @view
-func asset{
+func underlying_token{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }() -> (asset: felt):
-    let (asset) = _asset.read()
-    return (asset)
+    }() -> (underlying_token: felt):
+    let (underlying_token) = _underlying_token.read()
+    return (underlying_token)
 end
 
 # @notice Get l1 contract address 
@@ -557,91 +539,6 @@ func token_bridge{
     return (token_bridge)
 end
 
-# @notice Get assets per share
-# @return assets_per_share
-@view
-func assets_per_share{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }() -> (assets_per_share: Uint256):
-    let (assets_per_share) = _assets_per_share.read()
-    return (assets_per_share)
-end
-
-# @notice Get total asset locked
-# @return total_assets
-@view
-func total_assets{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }() -> (total_assets: Uint256):
-    let (totalSupply: Uint256) = total_supply.read()
-    let (total_assets: Uint256) = _shares_to_assets(totalSupply)
-    return (total_assets)
-end
-
-# @notice Get total asset of a user
-# @return assets_of
-@view
-func assetsOf{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(account: felt) -> (assets_of: Uint256):
-    let (balance: Uint256) = balances.read(account = account)
-    let (assets_of: Uint256) = _shares_to_assets(balance)
-    return (assets_of)
-end
-
-# @notice Get expected shares receieved on depositing
-# @return shares
-@view
-func preview_deposit{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(assets: Uint256) -> (shares: Uint256):
-    let (shares: Uint256) = _assets_to_shares(assets)
-    return (shares)
-end
-
-# @notice Get expected assets to mint shares
-# @return assets
-@view
-func preview_mint{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(shares: Uint256) -> (assets: Uint256):
-    let (assets: Uint256) = _shares_to_assets(shares)
-    return (assets)
-end
-
-# @notice Get expected shares to receive assets
-# @return shares
-@view
-func preview_withdraw{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(assets: Uint256) -> (shares: Uint256):
-    let (shares: Uint256) = _assets_to_shares(assets)
-    return (shares)
-end
-
-# @notice Get expected assets receieved on burning shares
-# @return assets
-@view
-func preview_redeem{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(shares: Uint256) -> (assets: Uint256):
-    let (assets: Uint256) = _shares_to_assets(shares)
-    return (assets)
-end
 
 #
 # Setters
@@ -856,8 +753,8 @@ end
 # Externals Defi Pooling
 #
 
-# @notice Deposit asset into contract, waiting to be bridged to L1
-# @dev `caller` should have already given the cotract an allowance of at least 'amount' on asset
+# @notice Deposit underlying token into contract, waiting to be bridged to L1
+# @dev `caller` should have already given the cotract an allowance of at least 'amount' on underlying token
 # @param amount The amount of token to deposit
 # @return new_total_deposit The total amount of tokens deposited for current deposit_id
 @external
@@ -868,326 +765,13 @@ func deposit{
     }(amount: Uint256) -> (total_deposit: Uint256):
     alloc_locals
 
-    let (total_deposit: Uint256) = _deposit(amount)
-    return (total_deposit)
-end
-
-
-# @notice Deposit asset into contract, waiting to be bridged to L1
-# @dev `caller` should have already given the cotract an allowance of at least 'amount' on asset
-# @param shares The shares to receieved on depositing
-# @return new_total_deposit The total amount of tokens deposited for current deposit_id
-@external
-func mint{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(shares: Uint256) -> (total_deposit: Uint256):
-    alloc_locals
-
-    let (amount: Uint256) = preview_mint(shares)
-    let (total_deposit: Uint256) = _deposit(amount)
-
-    return (total_deposit)
-end
-
-
-
-# @notice Cancel deposit to withdraw back your asset
-# @dev `caller` should have to call before the tokens are bridged to L1
-# @return new_total_deposit The total amount of tokens deposited for current deposit_id
-@external
-func cancel_deposit{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }()->(total_deposit:Uint256):
-    alloc_locals
-
-    let (sender) = get_caller_address()
-    let (id:felt) =_deposit_id.read()
-
-    let (deposited_amount:Uint256) = _deposit_amount.read(id,sender)
-
-    let (is_deposit_amount_equals_to_zero) = uint256_eq(deposited_amount,Uint256(0,0))
-    with_attr error_message("DefiPooling::cancel_deposit::No deposit request found"):
-        assert is_deposit_amount_equals_to_zero = 0
-    end
-
-    _deposit_amount.write(id,sender,Uint256(0,0))
-    
-    let (asset) = _asset.read()
-    IERC20.transfer(contract_address=asset, recipient=sender, amount=deposited_amount)
-
-    let (old_total_deposit) = _total_deposit.read(id)
-    let (new_total_deposit: Uint256) = uint256_checked_sub_le(old_total_deposit,deposited_amount)
-
-    _total_deposit.write(id,new_total_deposit)
-    return (new_total_deposit)
-end
-
-
-# @notice Bridge asset to L1 for current deposit_id
-# @dev only owner can call this
-# @return new_deposit_id the new current deposit id
-@external
-func deposit_assets_to_l1{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }() ->(deposit_id: felt):
-    alloc_locals
-    _only_owner()
-
-    let (id:felt) =_deposit_id.read()
-
-    # total amount to bridge to L1
-    let (amount_to_bridge:Uint256) = _total_deposit.read(id)
-
-    
-    # bridging asset token to L1
-    let bridge: felt = _token_bridge.read()
-    let (l1_contract_address: felt) = _l1_contract_address.read()
-    #  commenting for running unit test
-    ITokenBridge.initiate_withdraw(contract_address = bridge, l1_recipient = l1_contract_address, amount = amount_to_bridge)
-
-    # sending deposit request to L1
-    let (message_payload : felt*) = alloc()
-    assert message_payload[0] = MESSAGE_DEPOSIT_REQUEST
-    assert message_payload[1] = id                     
-    assert message_payload[2] = amount_to_bridge.low
-    assert message_payload[3] = amount_to_bridge.high
-    send_message_to_l1(
-        to_address=l1_contract_address,
-        payload_size=4,
-        payload=message_payload)
-
-   _deposit_id.write(id+1)
-
-    # _depositors_len.write(id+1,0)
-
-    return(id+1)
-end
-
-
-@l1_handler
-func handle_distribute_share{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(from_address : felt, id : felt, shares : Uint256):
-    alloc_locals
-
-    let (distributed_shares: Uint256) = _shares_distributed.read(id)
-
-    let (is_distributed_shares_equals_to_zero) = uint256_eq(distributed_shares, Uint256(0,0))
-    # assert is_distributed_shares_equals_to_zero = 1
-    with_attr error_message("DefiPooling::handle_distribute_share::shares already distributed"):
-        assert is_distributed_shares_equals_to_zero = 1
-        tempvar syscall_ptr = syscall_ptr
-        tempvar pedersen_ptr = pedersen_ptr
-        tempvar range_check_ptr = range_check_ptr
-    end
-
-    let (l1_contract_address) = _l1_contract_address.read()
-    # Make sure the message was sent by the intended L1 contract.
-    # **** bypass for testing*********
-    assert from_address = l1_contract_address
-
-    # Read the total deposit 
-    let (total_deposit_amount) = _total_deposit.read(id)
-    let (depositors_array_len: felt) = _depositors_len.read(id)
-
-    _shares_distributed.write(id,shares)
-
-    let (total_deposit_amount_mul_PRECISION) = uint256_checked_mul(total_deposit_amount, Uint256(PRECISION,0))
-    let (new_assets_per_share, _) = uint256_unsigned_div_rem(total_deposit_amount_mul_PRECISION, shares)
-    _assets_per_share.write(new_assets_per_share)
-
-    _distribute_share(id,depositors_array_len, total_deposit_amount, shares)
-
-    return ()
-end
-
-
-# @notice Withdraw asset from contract, waiting to be bridged back to L2
-# @dev `caller` should have Shares to withdraw
-# @param assets The expected assets to receive on withdrawing
-# @return new_total_withdraw The total amount of tokens withdraw request for current withdraw_id
-@external
-func withdraw{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(assets: Uint256)->(total_withdraw:Uint256):
-    alloc_locals
-
-    uint256_check(assets)
-
-    let (shares: Uint256) = preview_withdraw(assets)
-
-    let (total_withdraw: Uint256) = _withdraw(shares)
-
-    return (total_withdraw)
-
-end
-
-# @notice Redeem asset from contract, waiting to be bridged back to L2
-# @dev `caller` should have Shares to withdraw
-# @param shares The shares to redeem assets
-# @return new_total_withdraw The total amount of tokens withdraw request for current withdraw_id
-@external
-func redeem{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(shares: Uint256)->(total_withdraw:Uint256):
-    alloc_locals
-
-    uint256_check(shares)
-
-    let (total_withdraw: Uint256) = _withdraw(shares)
-
-    return (total_withdraw)
-
-end
-
-
-# @notice Cancel withdraw request
-# @dev `caller` should have to call before the tokens are bridged back from L1
-# @return new_total_withdraw The total amount of tokens wihdraw request for current withdraw_id
-@external
-func cancel_withdraw{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }()->(total_withdraw:Uint256):
-    alloc_locals
-
-    let (sender) = get_caller_address()
-    let (id:felt) =_withdraw_id.read()
-
-    let (withdraw_amountal:Uint256) =_withdraw_amount.read(id,sender)
-
-    let (is_withdraw_amountal_equals_to_zero) = uint256_eq(withdraw_amountal,Uint256(0,0))
-    with_attr error_message("DefiPooling::cancel_withdraw::No withdraw request found"):
-        assert is_withdraw_amountal_equals_to_zero = 0
-    end
-
-   _withdraw_amount.write(id,sender,Uint256(0,0))
-
-    # let (contract_address) = get_contract_address()
-    # IERC20.transfer(contract_address=contract_address, recipient=sender, amount=withdraw_amount)
-    _mint(sender,withdraw_amountal)
-
-    let (old_total_withdraw) = _total_withdraw.read(id)
-    let (new_total_withdraw: Uint256) = uint256_checked_sub_le(old_total_withdraw,withdraw_amountal)
-
-    _total_withdraw.write(id,new_total_withdraw)
-    return (new_total_withdraw)
-end
-
-# @notice Send withdraw request to L1 for current withdraw_id
-# @dev only owner can call this
-# @return new_withdraw_id the new current withdraw id
-@external
-func send_withdrawal_request_to_l1{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }()->(withdraw_id: felt):
-    alloc_locals
-    _only_owner()
-
-    let (id:felt) =_withdraw_id.read()
-
-    # total amount to withdraw from L1
-    let (amount_to_withdraw: Uint256) = _total_withdraw.read(id)
-
-    let (l1_contract_address) = _l1_contract_address.read()
-
-    # sending withdaw request to L1
-    let (message_payload : felt*) = alloc()
-    assert message_payload[0] = MESSAGE_WITHDRAWAL_REQUEST
-    assert message_payload[1] = id                   
-    assert message_payload[2] = amount_to_withdraw.low
-    assert message_payload[3] = amount_to_withdraw.high
-    send_message_to_l1(
-        to_address=l1_contract_address,
-        payload_size=4,
-        payload=message_payload)
-
-   _withdraw_id.write(id + 1)
-
-    # let (withdraw_array : felt*) = alloc()
-    #_withdraws.write(new_withdraw_id,0,withdraw_array)
-
-    return(id+1)
-end
-
-# ********* changing to external function for testing*****************
-@l1_handler
-func handle_distribute_asset{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(from_address : felt, id : felt, assets : Uint256):
-    alloc_locals
-    let (distributed_assets: Uint256) = _assets_distributed.read(id)
-
-    let (is_distributed_assets_equals_to_zero) = uint256_eq(distributed_assets, Uint256(0,0))
-    # assert is_distributed_shares_equals_to_zero = 1
-    with_attr error_message("DefiPooling::handle_distribute_asset::assets already distributed"):
-        assert is_distributed_assets_equals_to_zero = 1
-        tempvar syscall_ptr = syscall_ptr
-        tempvar pedersen_ptr = pedersen_ptr
-        tempvar range_check_ptr = range_check_ptr
-    end
-    let (l1_contract_address) = _l1_contract_address.read()
-    # Make sure the message was sent by the intended L1 contract.
-    # **** bypass for testing*********
-    assert from_address = l1_contract_address
-
-    # Read the total withdraw 
-    let (total_withdraw_amount) = _total_withdraw.read(id)
-    let (withdraws_array_len:felt) =_withdraws_len.read(id)
-
-    _assets_distributed.write(id, assets)
-
-    let (assets_mul_PRECISION) = uint256_checked_mul(assets, Uint256(PRECISION,0))
-    let (new_assets_per_share, _) = uint256_unsigned_div_rem(assets_mul_PRECISION, total_withdraw_amount)
-    _assets_per_share.write(new_assets_per_share)
-
-    _distribute_asset(id,withdraws_array_len, total_withdraw_amount, assets)
-
-    return ()
-end
-
-
-
-
-
-
-
-
-# 
-# Internal Defi Pooling
-# 
-
-func _deposit{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(amount: Uint256) -> (total_deposit: Uint256):
-    alloc_locals
-
     let (sender:felt) = get_caller_address()
     let (contract_address) = get_contract_address()
-    let (asset) = _asset.read()
+    let (underlying_token) = _underlying_token.read()
 
-    IERC20.transferFrom(contract_address=asset, sender=sender, recipient=contract_address, amount=amount)
+    IERC20.transferFrom(contract_address=underlying_token, sender=sender, recipient=contract_address, amount=amount)
 
-    let (id:felt) =_deposit_id.read()
+    let (id:Uint256) =_deposit_id.read()
     # let (depositors_array_len: felt, depositors_array: felt*) = depositors(id)
     let (depositors_array_len: felt) = _depositors_len.read(id)
     # let (depositors_array: felt) = depositors.read(id,Uint256(0,0))
@@ -1231,7 +815,113 @@ func _deposit{
     return (new_total_deposit)
 end
 
-func _withdraw{
+
+# @notice Cancel deposit to withdraw back your underlying token 
+# @dev `caller` should have to call before the tokens are bridged to L1
+# @return new_total_deposit The total amount of tokens deposited for current deposit_id
+@external
+func cancel_deposit{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }()->(total_deposit:Uint256):
+    alloc_locals
+
+    let (sender) = get_caller_address()
+    let (id:Uint256) =_deposit_id.read()
+
+    let (deposited_amount:Uint256) = _deposit_amount.read(id,sender)
+
+    let (is_deposit_amount_equals_to_zero) = uint256_eq(deposited_amount,Uint256(0,0))
+    with_attr error_message("DefiPooling::cancel_deposit::No deposit request found"):
+        assert is_deposit_amount_equals_to_zero = 0
+    end
+
+    _deposit_amount.write(id,sender,Uint256(0,0))
+    
+    let (underlying_token) = _underlying_token.read()
+    IERC20.transfer(contract_address=underlying_token, recipient=sender, amount=deposited_amount)
+
+    let (old_total_deposit) = _total_deposit.read(id)
+    let (new_total_deposit: Uint256) = uint256_checked_sub_le(old_total_deposit,deposited_amount)
+
+    _total_deposit.write(id,new_total_deposit)
+    return (new_total_deposit)
+end
+
+
+# @notice Bridge underlying token to L1 for current deposit_id
+# @dev only owner can call this
+# @return new_deposit_id the new current deposit id
+@external
+func deposit_to_l1{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() ->(deposit_id: Uint256):
+    alloc_locals
+    _only_owner()
+
+    let (id:Uint256) =_deposit_id.read()
+
+    # total amount to bridge to L1
+    let (amount_to_bridge:Uint256) = _total_deposit.read(id)
+
+    
+    # bridging underlying token to L1
+    let bridge: felt = _token_bridge.read()
+    let (l1_contract_address: felt) = _l1_contract_address.read()
+    #  commenting for running unit test
+    # ITokenBridge.initiate_withdraw(contract_address = bridge, l1_recipient = l1_contract_address, amount = amount_to_bridge)
+
+    # sending deposit request to L1
+    let (message_payload : felt*) = alloc()
+    assert message_payload[0] = MESSAGE_DEPOSIT_REQUEST
+    assert message_payload[1] = id.low                        
+    assert message_payload[2] = amount_to_bridge.low
+    send_message_to_l1(
+        to_address=l1_contract_address,
+        payload_size=3,
+        payload=message_payload)
+
+    let (new_deposit_id:Uint256) = uint256_checked_add(id,Uint256(1,0))
+   _deposit_id.write(new_deposit_id)
+
+    _depositors_len.write(new_deposit_id,0)
+
+    return(new_deposit_id)
+end
+
+# ********* changing to external function for testing*****************
+# @l1_handler
+@external
+func distribute_share{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(from_address : felt, id : Uint256, amount : Uint256):
+
+    let (l1_contract_address) = _l1_contract_address.read()
+    # Make sure the message was sent by the intended L1 contract.
+    # **** bypass for testing*********
+    # assert from_address = l1_contract_address
+
+    # Read the total deposit 
+    let (total_deposit_amount) = _total_deposit.read(id)
+    let (depositors_array_len: felt) = _depositors_len.read(id)
+
+    _distribute_share(id,depositors_array_len, total_deposit_amount, amount)
+
+    return ()
+end
+
+
+# @notice Withdraw underlying token from contract, waiting to be bridged back to L2
+# @dev `caller` should have mShares to withdraw
+# @param amount The amount of mShares to withdraw
+# @return new_total_withdraw The total amount of tokens withdraw request for current withdraw_id
+@external
+func withdraw{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
@@ -1251,11 +941,12 @@ func _withdraw{
     #     assert_not_zero(is_amount_less_than_equals_to_balance)
     # end
 
+    
 
     # IERC20.transferFrom(contract_address=contract_address, sender=sender, recipient=contract_address, amount=amount)
     _burn(sender,amount)
 
-    let (id:felt) =_withdraw_id.read()
+    let (id:Uint256) =_withdraw_id.read()
     # let (withdrawer: felt) =_withdraws.read(id)
     let (withdraws_array_len: felt) =_withdraws_len.read(id)
 
@@ -1290,11 +981,116 @@ func _withdraw{
 end
 
 
+# @notice Cancel withdraw request
+# @dev `caller` should have to call before the tokens are bridged back from L1
+# @return new_total_withdraw The total amount of tokens wihdraw request for current withdraw_id
+@external
+func cancel_withdraw{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }()->(total_withdraw:Uint256):
+    alloc_locals
+
+    let (sender) = get_caller_address()
+    let (id:Uint256) =_withdraw_id.read()
+
+    let (withdraw_amountal:Uint256) =_withdraw_amount.read(id,sender)
+
+    let (is_withdraw_amountal_equals_to_zero) = uint256_eq(withdraw_amountal,Uint256(0,0))
+    with_attr error_message("DefiPooling::cancel_deposit::No withdraw request found"):
+        assert is_withdraw_amountal_equals_to_zero = 0
+    end
+
+   _withdraw_amount.write(id,sender,Uint256(0,0))
+
+    # let (contract_address) = get_contract_address()
+    # IERC20.transfer(contract_address=contract_address, recipient=sender, amount=withdraw_amount)
+    _mint(sender,withdraw_amountal)
+
+    let (old_total_withdraw) = _total_withdraw.read(id)
+    let (new_total_withdraw: Uint256) = uint256_checked_sub_le(old_total_withdraw,withdraw_amountal)
+
+    _total_withdraw.write(id,new_total_withdraw)
+    return (new_total_withdraw)
+end
+
+# @notice Send withdraw request to L1 for current withdraw_id
+# @dev only owner can call this
+# @return new_withdraw_id the new current withdraw id
+@external
+func send_withdrawal_request_to_l1{
+        syscall_ptr : felt*, 
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }()->(withdraw_id: Uint256):
+    alloc_locals
+    _only_owner()
+
+    let (id:Uint256) =_withdraw_id.read()
+
+    # total amount to withdraw from L1
+    let (amount_to_withdraw: Uint256) = _total_withdraw.read(id)
+
+    let (l1_contract_address) = _l1_contract_address.read()
+
+    # sending withdaw request to L1
+    let (message_payload : felt*) = alloc()
+    assert message_payload[0] = MESSAGE_WITHDRAWAL_REQUEST
+    assert message_payload[1] = id.low                        
+    assert message_payload[2] = amount_to_withdraw.low
+    send_message_to_l1(
+        to_address=l1_contract_address,
+        payload_size=3,
+        payload=message_payload)
+
+    let (new_withdraw_id: Uint256) = uint256_checked_add(id,Uint256(1,0))
+   _withdraw_id.write(new_withdraw_id)
+
+    # let (withdraw_array : felt*) = alloc()
+    #_withdraws.write(new_withdraw_id,0,withdraw_array)
+
+    return(new_withdraw_id)
+end
+
+# ********* changing to external function for testing*****************
+# @l1_handler
+@external
+func distribute_underlying{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(from_address : felt, id : Uint256, amount : Uint256):
+
+    let (l1_contract_address) = _l1_contract_address.read()
+    # Make sure the message was sent by the intended L1 contract.
+    # **** bypass for testing*********
+    # assert from_address = l1_contract_address
+
+    # Read the total withdraw 
+    let (total_withdraw_amount) = _total_withdraw.read(id)
+    let (withdraws_array_len:felt) =_withdraws_len.read(id)
+
+    _distribute_underlying(id,withdraws_array_len, total_withdraw_amount, amount)
+
+    return ()
+end
+
+
+
+
+
+
+
+
+# 
+# Internal Defi Pooling
+# 
 func _distribute_share{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }( id: felt, depositors_len: felt, total_deposit: Uint256, amount: Uint256):
+    }( id: Uint256, depositors_len: felt, total_deposit: Uint256, amount: Uint256):
     alloc_locals
 
     if depositors_len == 0:
@@ -1324,11 +1120,11 @@ func _distribute_share{
     return _distribute_share(id = id, depositors_len = depositors_len - 1, total_deposit = total_deposit, amount = amount)
 end
 
-func _distribute_asset{
+func _distribute_underlying{
         syscall_ptr : felt*, 
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }( id: felt, withdraws_len: felt, total_withdraw: Uint256, amount: Uint256):
+    }( id: Uint256, withdraws_len: felt, total_withdraw: Uint256, amount: Uint256):
     alloc_locals
 
     if withdraws_len == 0:
@@ -1339,12 +1135,12 @@ func _distribute_asset{
     let (withdrawal_amount: Uint256) =_withdraw_amount.read(id,withdrawer)
     let (withdrawal_amount_mul_amount: Uint256) = uint256_checked_mul(withdrawal_amount,amount)
     let (amount_to_withdraw: Uint256, _) = uint256_unsigned_div_rem(withdrawal_amount_mul_amount,total_withdraw)
-    let (asset) = _asset.read()
+    let (underlying_token) = _underlying_token.read()
 
 
     let (is_amount_to_withdraw_less_than_zero) = uint256_le(amount_to_withdraw,Uint256(0,0))
     if is_amount_to_withdraw_less_than_zero == 0:
-        IERC20.transfer(contract_address=asset, recipient=withdrawer, amount=amount_to_withdraw)
+        IERC20.transfer(contract_address=underlying_token, recipient=withdrawer, amount=amount_to_withdraw)
         tempvar syscall_ptr = syscall_ptr
         tempvar pedersen_ptr = pedersen_ptr
         tempvar range_check_ptr = range_check_ptr
@@ -1355,45 +1151,16 @@ func _distribute_asset{
 
     end
 
-    return _distribute_asset(id = id, withdraws_len = withdraws_len - 1, total_withdraw = total_withdraw, amount = amount)
+    return _distribute_underlying(id = id, withdraws_len = withdraws_len - 1, total_withdraw = total_withdraw, amount = amount)
 end
 
 
 
-func _assets_to_shares{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(assets: Uint256 )->(shares: Uint256):
-    alloc_locals
 
-    let(assets_per_share: Uint256) = _assets_per_share.read()
 
-    let(is_assets_per_share_is_equals_zero) = uint256_eq(assets_per_share, Uint256(0,0))
-    
-    if is_assets_per_share_is_equals_zero == 1:
-        return (Uint256(0,0))
-    end
-    let (assets_mul_PRECISION) = uint256_checked_mul(assets, Uint256(PRECISION,0))
-    let (shares: Uint256, _) = uint256_unsigned_div_rem(assets_mul_PRECISION,assets_per_share)
 
-    return (shares)
-end
 
-func _shares_to_assets{
-        syscall_ptr : felt*, 
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(shares: Uint256 )->(assets: Uint256):
-    alloc_locals
 
-    let(assets_per_share: Uint256) = _assets_per_share.read()
-
-    let (assets_mul_PRECISION: Uint256) = uint256_checked_mul(shares,assets_per_share)
-    let (assets: Uint256, _) = uint256_unsigned_div_rem(assets_mul_PRECISION,Uint256(PRECISION,0))
-
-    return (assets)
-end
 
 #
 # Internals ERC20

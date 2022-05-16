@@ -7,6 +7,8 @@ from starkware.cairo.common.math import assert_not_zero
 from starkware.cairo.common.uint256 import (
     Uint256, uint256_add, uint256_sub, uint256_le, uint256_lt, uint256_check
 )
+from contracts.test.token.permitted import (
+    permitted_initializer, permitted_minter, permitted_minter_only, permittedMinter)
 
 #
 # Storage
@@ -49,7 +51,8 @@ func constructor{
         name: felt,
         symbol: felt,
         decimals: felt,
-        recipient: felt
+        recipient: felt,
+        minter_address: felt
     ):
     # get_caller_address() returns '0' in the constructor;
     # therefore, recipient parameter is included
@@ -57,6 +60,7 @@ func constructor{
     _symbol.write(symbol)
     _decimals.write(decimals)
     _mint(recipient, Uint256(1000, 0))
+    permitted_initializer(minter_address)
     return ()
 end
 
@@ -246,6 +250,31 @@ func burn{
         range_check_ptr
     }(user: felt, amount: Uint256):
     _burn(user, amount)
+    return ()
+end
+
+
+@external
+func permissionedMint{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        recipient : felt, amount : Uint256):
+    alloc_locals
+    permitted_minter_only()
+    local syscall_ptr : felt* = syscall_ptr
+
+    _mint(recipient=recipient, amount=amount)
+
+    return ()
+end
+
+@external
+func permissionedBurn{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        account : felt, amount : Uint256):
+    alloc_locals
+    permitted_minter_only()
+    local syscall_ptr : felt* = syscall_ptr
+
+    _burn(account=account, amount=amount)
+
     return ()
 end
 

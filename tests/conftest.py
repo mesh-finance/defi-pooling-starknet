@@ -66,21 +66,50 @@ async def user_2(starknet):
     return user_2_signer, user_2_account
 
 @pytest.fixture
-async def token_0(starknet, random_acc):
+async def user_3(starknet):
+    user_3_signer = Signer(987654331133456521)
+    user_3_account = await starknet.deploy(
+        "contracts/test/Account.cairo",
+        constructor_calldata=[user_3_signer.public_key]
+    )
+
+    return user_3_signer, user_3_account
+
+@pytest.fixture
+async def token_bridge(starknet, deployer):
+    deployer_signer, deployer_account = deployer
+    token_bridge = await starknet.deploy("contracts/token_bridge.cairo", constructor_calldata=[
+            deployer_account.contract_address
+        ])
+        
+    
+
+    return token_bridge
+
+
+@pytest.fixture
+async def token_0(starknet, random_acc,token_bridge, deployer,l1_bridge_contract):
     random_signer, random_account = random_acc
+    deployer_signer, deployer_account = deployer
+
     token_0 = await starknet.deploy(
         "contracts/test/token/ERC20.cairo",
         constructor_calldata=[
             str_to_felt("Token 0"),  # name
             str_to_felt("TOKEN0"),  # symbol
             18,                     # decimals
-            random_account.contract_address
+            random_account.contract_address,
+            token_bridge.contract_address
         ]
     )
+    
+    await deployer_signer.send_transaction(deployer_account, token_bridge.contract_address, 'set_l2_token', [token_0.contract_address])
+    await deployer_signer.send_transaction(deployer_account, token_bridge.contract_address, 'set_l1_bridge', [l1_bridge_contract])
+
     return token_0
 
 @pytest.fixture
-async def token_1(starknet, random_acc):
+async def token_1(starknet, random_acc,token_bridge):
     random_signer, random_account = random_acc
     token_1 = await starknet.deploy(
         "contracts/test/token/ERC20.cairo",
@@ -88,7 +117,8 @@ async def token_1(starknet, random_acc):
             str_to_felt("Token 1"),  # name
             str_to_felt("TOKEN1"),  # symbol
             6,                     # decimals
-            random_account.contract_address
+            random_account.contract_address,
+            token_bridge.contract_address
         ]
     )
     return token_1
@@ -102,10 +132,21 @@ async def token_name():
 async def token_symbol():
     return str_to_felt(token_name_string)
 
+# @pytest.fixture
+# async def l1_contract():
+#     return str_to_felt('0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48')
+
+# @pytest.fixture
+# async def l1_bridge_contract():
+#     return str_to_felt('0xdAC17F958D2ee523a2206206994597C13D831ec7')
+
 @pytest.fixture
 async def l1_contract():
-    return str_to_felt('1234567412')
+    return str_to_felt('123456789')
 
+@pytest.fixture
+async def l1_bridge_contract():
+    return str_to_felt('987654321')
 
 # @pytest.fixture
 # async def registry(starknet, deployer):
@@ -115,13 +156,6 @@ async def l1_contract():
 #         ])
 #     return registry
 
-@pytest.fixture
-async def token_bridge(starknet, deployer):
-    deployer_signer, deployer_account = deployer
-    token_bridge = await starknet.deploy("contracts/token_bridge.cairo", constructor_calldata=[
-            deployer_account.contract_address
-        ])
-    return token_bridge
 
 @pytest.fixture
 async def defiPooling(starknet,token_0,token_name,token_symbol,l1_contract,deployer,token_bridge):
