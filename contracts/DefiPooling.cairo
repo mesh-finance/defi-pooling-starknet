@@ -255,7 +255,7 @@ func constructor{
     }(
         name: felt,
         symbol: felt,
-        l1_contract_address: felt,
+        # l1_contract_address: felt,
         asset: felt,
         token_bridge: felt,
         owner: felt,
@@ -263,7 +263,7 @@ func constructor{
     with_attr error_message("DefiPooling::constructor::all arguments must be non zero"):
         assert_not_zero(name)
         assert_not_zero(symbol)
-        assert_not_zero(l1_contract_address)
+        # assert_not_zero(l1_contract_address)
         assert_not_zero(asset)
         assert_not_zero(token_bridge)
         assert_not_zero(owner)
@@ -273,7 +273,7 @@ func constructor{
     _symbol.write(symbol)
     _decimals.write(18)
     # _percesion.write(9)
-    _l1_contract_address.write(l1_contract_address)
+    # _l1_contract_address.write(l1_contract_address)
     _asset.write(asset)
     _token_bridge.write(token_bridge)
     _owner.write(owner)
