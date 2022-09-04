@@ -165,11 +165,12 @@ async def defiPooling(starknet,token_0,token_name,token_symbol,l1_contract,deplo
         constructor_calldata=[
             token_name,
             token_symbol,
-            l1_contract,
+            # l1_contract,
             token_0.contract_address,
             token_bridge.contract_address,
             deployer_account.contract_address
         ]
     )
+    await deployer_signer.send_transaction(deployer_account, defiPooling.contract_address, 'update_l1_contract', [l1_contract])
     return defiPooling
 
