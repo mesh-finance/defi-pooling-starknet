@@ -1,0 +1,16 @@
+["protostar.config"]
+protostar_version = "0.3.1"
+
+["protostar.project"]
+libs_path = "lib"
+
+["protostar.contracts"]
+DefiPooling = [
+    "./contracts/DefiPooling.cairo"
+]
+token_bridge = [
+    "./contracts/token_bridge.cairo",
+]
+
+["protostar.shared_command_configs"]
+cairo-path = ["./lib/cairo_contracts/src"]
