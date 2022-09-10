@@ -253,6 +253,7 @@ func test_deposit{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
     return ()
 end
 
+
 @external
 func test_cancel_deposit{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}():
 

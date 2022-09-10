@@ -19,6 +19,10 @@ namespace IERC20:
 
     func decimals() -> (decimals: felt):
     end
+
+    func balanceOf(account: felt) -> (balance: Uint256):
+    end
+
 end
 
 @contract_interface
