@@ -2,11 +2,12 @@
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
 from starkware.starknet.common.syscalls import get_caller_address, deploy, get_contract_address
-from starkware.cairo.common.uint256 import Uint256, uint256_add, uint256_sub
+from starkware.cairo.common.uint256 import Uint256, uint256_add, uint256_sub, uint256_unsigned_div_rem
 from starkware.cairo.common.pow import pow
 from starkware.cairo.common.alloc import alloc
+from contracts.utils.math import uint256_checked_mul
 
-
+const PRECISION = 1000000000
 
 @contract_interface
 namespace IERC20:
@@ -52,6 +53,9 @@ namespace IDefiPooling:
     func deposit(amount: Uint256) -> (total_deposit: Uint256):
     end
 
+    func handle_distribute_share(from_address : felt, id : felt, shares : Uint256):
+    end
+
     func current_deposit_id() -> (id: felt):
     end
 
@@ -70,7 +74,7 @@ namespace IDefiPooling:
     func assets_per_share() -> (assets_per_share: Uint256):
     end
 
-    func deposit_assets_to_l1() ->(deposit_id: felt):
+    func deposit_assets_to_l1() -> (deposit_id: felt):
     end
 
     func total_assets() -> (total_assets: Uint256):
@@ -83,6 +87,26 @@ namespace IDefiPooling:
     end
 end
 
+@contract_interface
+namespace ITokenBridge:
+    func get_governor() -> (res : felt):
+    end
+
+    func get_l1_bridge() -> (res : felt):
+    end
+
+    func get_l2_token() -> (res : felt):
+    end
+
+    func set_l1_bridge(l1_bridge_address : felt):
+    end
+
+    func set_l2_token(l2_token_address : felt):
+    end
+
+    func initiate_withdraw(l1_recipient : felt, amount : Uint256):
+    end
+end
 
 @external
 func __setup__{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}():
@@ -94,7 +118,8 @@ func __setup__{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     local deployer_address
     local token_0_address
     local token_bridge_address
-    local l1_contract = 123456789
+    local l1_contract = 907507751940624169017 # str_to_felt('123456789')
+    local l1_bridge_contract = 1055515178193424429617 # str_to_felt('987654321')
     local contract_address
 
     %{
@@ -102,11 +127,12 @@ func __setup__{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         context.user_1_signer = ids.user_1_signer
         context.user_2_signer = ids.user_2_signer
         context.l1_contract = ids.l1_contract
+        context.l1_bridge_contract = ids.l1_bridge_contract
         context.user_1_address = deploy_contract("./contracts/test/Account.cairo", [context.user_1_signer]).contract_address
         context.user_2_address = deploy_contract("./contracts/test/Account.cairo", [context.user_2_signer]).contract_address
         context.deployer_address = deploy_contract("./contracts/test/Account.cairo", [context.deployer_signer]).contract_address
-        context.token_0_address = deploy_contract("lib/cairo_contracts/src/openzeppelin/token/erc20/presets/ERC20Mintable.cairo", [11, 1, 18, 0, 0, context.deployer_address, context.deployer_address]).contract_address
         context.token_bridge_address = deploy_contract("./contracts/token_bridge.cairo", [context.deployer_address]).contract_address
+        context.token_0_address = deploy_contract("./contracts/test/token/ERC20.cairo", [11, 1, 18, context.deployer_address, context.token_bridge_address]).contract_address
         context.contract_address = deploy_contract("./contracts/DefiPooling.cairo", [
             1111, #"Jedi Interest Bearing USDC",
             1010, #"jUSDC",
@@ -126,6 +152,17 @@ func __setup__{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     
     let (_l1_contract) = IDefiPooling.l1_contract_address(contract_address=contract_address)
     assert l1_contract = _l1_contract
+
+    %{ stop_prank = start_prank(context.deployer_address, target_contract_address=ids.token_bridge_address) %}
+    ITokenBridge.set_l1_bridge(contract_address=token_bridge_address, l1_bridge_address=l1_bridge_contract)
+    ITokenBridge.set_l2_token(contract_address=token_bridge_address, l2_token_address=token_0_address)
+    %{ stop_prank() %}
+
+    let (_l1_bridge) = ITokenBridge.get_l1_bridge(contract_address=token_bridge_address)
+    assert l1_bridge_contract = _l1_bridge
+
+    let (_l2_token) = ITokenBridge.get_l2_token(contract_address=token_bridge_address)
+    assert token_0_address = _l2_token
 
     return ()
 end
@@ -235,9 +272,7 @@ func test_deposit{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
     let (new_deposit_id) = IDefiPooling.deposit_assets_to_l1(contract_address=contract_address)
     %{ stop_prank() %}
 
-
-    # How to consume message from L2?
-    # What is equivalent of starknet.consume_message_from_l2 in protostar?
+    # Note: Skip L1 message handling (starknet.send_message_to_l2)
 
     let (id) = IDefiPooling.current_deposit_id(contract_address=contract_address)
     assert id = new_deposit_id
@@ -248,18 +283,26 @@ func test_deposit{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
 
     # Distributing shares received from L1 for deposit id 0
 
-    # How to send message from L2?
-    # What is equivalent of starknet.send_message_to_l2 in protostar?
+    let shares_received = 80 * 10**18
+    # TODO: how to call handle_distribute_share in cairo without needing to update function to @external
+    # %{ stop_prank = start_prank(context.l1_contract, target_contract_address=ids.contract_address) %}
+    # let (_l1_contract) = IDefiPooling.l1_contract_address(contract_address=contract_address)
+    # IDefiPooling.handle_distribute_share(contract_address=contract_address, from_address=_l1_contract, id=id, shares=Uint256(shares_received, 0))
+    # %{ stop_prank() %}
 
     let (assets_per_share) = IDefiPooling.assets_per_share(contract_address=contract_address)
-
-    # //  Do magic
+    let (total_shares) = uint256_checked_mul(new_total_deposit, Uint256(PRECISION, 0))
+    let (expected_assets_per_share, _) = uint256_unsigned_div_rem(total_shares, Uint256(shares_received, 0))
+    assert assets_per_share = expected_assets_per_share
 
     let (total_assets) = IDefiPooling.total_assets(contract_address=contract_address)
+    assert total_assets = new_total_deposit
 
     # // Do magic
 
+    # Verify shares balance of depositors
 
+    # // Do magic
 
     return ()
 end

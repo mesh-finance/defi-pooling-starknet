@@ -970,7 +970,7 @@ func deposit_assets_to_l1{
 end
 
 
-@l1_handler
+@external
 func handle_distribute_share{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,

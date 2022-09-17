@@ -54,8 +54,8 @@ func test_deployment{syscall_ptr: felt*, pedersen_ptr : HashBuiltin*, range_chec
     %{
         context.deployer_signer = ids.deployer_signer
         context.deployer_address = deploy_contract("./contracts/test/Account.cairo", [context.deployer_signer]).contract_address
-        context.token_0_address = deploy_contract("lib/cairo_contracts/src/openzeppelin/token/erc20/presets/ERC20Mintable.cairo", [11, 1, 18, 0, 0, context.deployer_address, context.deployer_address]).contract_address
         context.token_bridge_address = deploy_contract("./contracts/token_bridge.cairo", [context.deployer_address]).contract_address
+        context.token_0_address = deploy_contract("./contracts/test/token/ERC20.cairo", [11, 1, 18, context.deployer_address, context.token_bridge_address]).contract_address
         context.contract_address = deploy_contract("./contracts/DefiPooling.cairo", [
             1111, #"Jedi Interest Bearing USDC",
             1010, #"jUSDC",

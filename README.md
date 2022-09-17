@@ -1,5 +1,13 @@
 # Defi Pooling Starknet
 
+## Setup Testing
+0. Clone repo
+1. Download protostar 0.3.1
+2. Check your .git/modules folder in the repo's source directory. If there are any modules there from your previous tries remove them using rm -rf. 
+3. Remove any existing .gitmodules file as well. rm .gitmodules
+4. Run protostar install https://github.com/OpenZeppelin/cairo-contracts --name cairo_contracts. Ensure you download OpenZeppelin 0.3.0
+5. Check your lib directory and ensure you have got a new cairo_contracts folder there.
+
 ## How to deploy
 1) python3 scripts/deploy.js
 2) update defiPooling_address in scripts/config/testnet.py
