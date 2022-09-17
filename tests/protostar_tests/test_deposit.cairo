@@ -78,6 +78,9 @@ namespace IDefiPooling:
 
     func cancel_deposit() -> (total_deposit:Uint256):    
     end
+
+    func update_l1_contract(new_l1_contract : felt):
+    end
 end
 
 
@@ -91,16 +94,17 @@ func __setup__{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     local deployer_address
     local token_0_address
     local token_bridge_address
+    local l1_contract = 123456789
     local contract_address
 
     %{
         context.deployer_signer = ids.deployer_signer
         context.user_1_signer = ids.user_1_signer
         context.user_2_signer = ids.user_2_signer
+        context.l1_contract = ids.l1_contract
         context.user_1_address = deploy_contract("./contracts/test/Account.cairo", [context.user_1_signer]).contract_address
         context.user_2_address = deploy_contract("./contracts/test/Account.cairo", [context.user_2_signer]).contract_address
         context.deployer_address = deploy_contract("./contracts/test/Account.cairo", [context.deployer_signer]).contract_address
-
         context.token_0_address = deploy_contract("lib/cairo_contracts/src/openzeppelin/token/erc20/presets/ERC20Mintable.cairo", [11, 1, 18, 0, 0, context.deployer_address, context.deployer_address]).contract_address
         context.token_bridge_address = deploy_contract("./contracts/token_bridge.cairo", [context.deployer_address]).contract_address
         context.contract_address = deploy_contract("./contracts/DefiPooling.cairo", [
@@ -115,6 +119,13 @@ func __setup__{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
         ids.token_bridge_address = context.token_bridge_address
         ids.contract_address = context.contract_address
     %}
+
+    %{ stop_prank = start_prank(context.deployer_address, target_contract_address=ids.contract_address) %}
+    IDefiPooling.update_l1_contract(contract_address=contract_address, new_l1_contract=l1_contract)
+    %{ stop_prank() %}
+    
+    let (_l1_contract) = IDefiPooling.l1_contract_address(contract_address=contract_address)
+    assert l1_contract = _l1_contract
 
     return ()
 end
