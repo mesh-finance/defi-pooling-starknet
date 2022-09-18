@@ -268,3 +268,96 @@ func test_withdraw{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_p
 
     return ()
 end
+
+@external
+func test_cancel_withdraw{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}():
+    alloc_locals
+
+    local contract_address
+    local token_0_address
+    local user_1_address
+    local user_2_address
+
+    %{
+        ids.contract_address = context.contract_address
+        ids.token_0_address = context.token_0_address
+        ids.user_1_address = context.user_1_address
+        ids.user_2_address = context.user_2_address
+    %}
+
+    let (token_0_decimals) = IERC20.decimals(contract_address=token_0_address)
+    let (token_0_multiplier) = pow(10, token_0_decimals)
+    
+    # Mint loads of token 0 to user 1 to deposit
+    let amount_to_mint_user_1 = 60 * token_0_multiplier
+    %{ stop_prank = start_prank(context.deployer_address, target_contract_address=ids.token_0_address) %}
+    IERC20.mint(contract_address=token_0_address, recipient=user_1_address, amount=Uint256(amount_to_mint_user_1, 0))
+    %{ stop_prank() %}
+
+    # Depositing from user 1
+    let amount_to_deposit_user_1 = 40 * token_0_multiplier
+    %{ stop_prank = start_prank(context.user_1_address, target_contract_address=ids.token_0_address) %}
+    IERC20.approve(contract_address=token_0_address, spender=contract_address, amount=Uint256(amount_to_deposit_user_1, 0))
+    %{ stop_prank() %}
+    %{ stop_prank = start_prank(context.user_1_address, target_contract_address=ids.contract_address) %}
+    let (total_deposit) = IDefiPooling.deposit(contract_address=contract_address, amount=Uint256(amount_to_deposit_user_1, 0))
+    %{ stop_prank() %}
+
+    # Bridging to L1
+    %{ stop_prank = start_prank(context.deployer_address, target_contract_address=ids.contract_address) %}
+    let (new_deposit_id) = IDefiPooling.deposit_assets_to_l1(contract_address=contract_address)
+    %{ stop_prank() %}
+
+    # Note: Skip L1 message handling
+
+    # Distributing shares received from L1 for deposit id 0
+    let shares_received = 80 * 10**18
+    %{ stop_prank = start_prank(context.l1_contract, target_contract_address=ids.contract_address) %}
+    let (_l1_contract) = IDefiPooling.l1_contract_address(contract_address=contract_address)
+    # TODO: how to call handle_distribute_share in cairo without needing to update function to @external
+    IDefiPooling.handle_distribute_share(contract_address=contract_address, from_address=_l1_contract, id=0, shares=Uint256(shares_received, 0))
+    %{ stop_prank() %}
+
+    let (assets_per_share_after_deposit) = IDefiPooling.assets_per_share(contract_address=contract_address)
+    let (user_1_shares_balance_before) = IERC20.balanceOf(contract_address=contract_address, account=user_1_address)
+
+    let (assets_of_user_1) = IDefiPooling.assetsOf(contract_address=contract_address, account=user_1_address)
+    let (id) = IDefiPooling.current_withdraw_id(contract_address=contract_address)
+    let (assets_to_withdraw_user_1, _) = uint256_unsigned_div_rem(assets_of_user_1, Uint256(2, 0))
+
+    let (assets_to_withdraw_user_1_PRECISION) = uint256_checked_mul(assets_to_withdraw_user_1, Uint256(PRECISION, 0))
+    let (expected_shares_required_to_withdraw, _) = uint256_unsigned_div_rem(assets_to_withdraw_user_1_PRECISION, assets_per_share_after_deposit)
+
+    # Withdrawing from user 1
+    %{ stop_prank = start_prank(context.user_1_address, target_contract_address=ids.contract_address) %}
+    let (total_withdraw) = IDefiPooling.withdraw(contract_address=contract_address, amount=assets_to_withdraw_user_1)
+    %{ stop_prank() %}
+    assert total_withdraw = expected_shares_required_to_withdraw
+
+    let (assets_of_user_1_after_withdraw) = IDefiPooling.assetsOf(contract_address=contract_address, account=user_1_address)
+    let (expected_assets_of_user_1_after_withdraw) = uint256_sub(assets_of_user_1, assets_to_withdraw_user_1)
+    assert assets_of_user_1_after_withdraw = expected_assets_of_user_1_after_withdraw
+
+    let (user_1_shares_balance) = IERC20.balanceOf(contract_address=contract_address, account=user_1_address)
+    let (expected_user_1_shares_balance) = uint256_sub(user_1_shares_balance_before, expected_shares_required_to_withdraw)
+    assert user_1_shares_balance = expected_user_1_shares_balance
+
+    # Cancelling withdraw for user_1
+    %{ stop_prank = start_prank(context.user_1_address, target_contract_address=ids.contract_address) %}
+    let (new_total_withdraw) = IDefiPooling.cancel_withdraw(contract_address=contract_address)
+    %{ stop_prank() %}
+
+    # Verify balances
+    let (expected_new_total_withdraw: Uint256) = uint256_sub(total_withdraw, expected_shares_required_to_withdraw)
+    assert new_total_withdraw = expected_new_total_withdraw
+
+    let (user_1_shares_new_balance) = IERC20.balanceOf(contract_address=contract_address, account=user_1_address)
+    let (expected_user_1_shares_new_balance: Uint256, _) = uint256_add(user_1_shares_balance, expected_shares_required_to_withdraw)
+    assert user_1_shares_new_balance = expected_user_1_shares_new_balance
+
+    # Verifying the withdraw amount
+    let (withdraw_amount_user_1_after_cancel) = IDefiPooling.withdraw_amount(contract_address=contract_address, withdraw_id=id, withdrawer=user_1_address)
+    assert withdraw_amount_user_1_after_cancel = Uint256(0, 0) # Manual check
+
+    return ()
+end
