@@ -969,8 +969,8 @@ func deposit_assets_to_l1{
     return(id+1)
 end
 
-
-@l1_handler
+# TODO: Must change @l1_handler to @external to run any tests
+@external
 func handle_distribute_share{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,

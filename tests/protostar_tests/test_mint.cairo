@@ -255,9 +255,9 @@ func test_mint{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     let (assets_per_share_after_deposit_id_0) = IDefiPooling.assets_per_share(contract_address=contract_address)
     let (total_assets_after_deposit_id_0) = IDefiPooling.total_assets(contract_address=contract_address)
 
-    ##############################################
-    ############ Testing mint ####################
-    ##############################################
+    ######################################################################
+    ############ Testing mint: Asset per share is set ####################
+    ######################################################################
 
     # User 1
     let shares_to_mint_user_1 = 25 * 10**18
@@ -369,6 +369,134 @@ func test_mint{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
 
     let (assets_of_user_2) = IDefiPooling.assetsOf(contract_address=contract_address, account=depositors_2)
     assert assets_of_user_2 = expected_asset_required_to_mint_user_2
+
+    return ()
+end
+
+@external
+func test_cancel_deposit{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}():
+
+    alloc_locals
+
+    local deployer_address
+    local user_1_address
+    local user_2_address
+    local token_0_address
+    local contract_address
+
+    %{
+        ids.deployer_address = context.deployer_address
+        ids.user_1_address = context.user_1_address
+        ids.user_2_address = context.user_2_address
+        ids.token_0_address = context.token_0_address
+        ids.contract_address = context.contract_address
+    %}
+
+    let (token_0_decimals) = IERC20.decimals(contract_address=token_0_address)
+    let (token_0_multiplier) = pow(10, token_0_decimals)
+
+    # Mint loads of token 0 to user 1 to deposit
+
+    let amount_to_mint_user_1 = 60 * token_0_multiplier
+    %{ stop_prank = start_prank(context.deployer_address, target_contract_address=ids.token_0_address) %}
+    IERC20.mint(contract_address=token_0_address, recipient=user_1_address, amount=Uint256(amount_to_mint_user_1, 0))
+    %{ stop_prank() %}
+
+    # Mint loads of tokens_0 to user 2 to deposit
+
+    let amount_to_mint_user_2 = 60 * token_0_multiplier
+    %{ stop_prank = start_prank(context.deployer_address, target_contract_address=ids.token_0_address) %}
+    IERC20.mint(contract_address=token_0_address, recipient=user_2_address, amount=Uint256(amount_to_mint_user_2, 0))
+    %{ stop_prank() %}
+
+    # Approve tokens required to spent by Defi Pooling
+
+    let amount_to_deposit_user_2 = 10 * token_0_multiplier
+
+    %{ stop_prank = start_prank(context.user_2_address, target_contract_address=ids.token_0_address) %}
+    IERC20.approve(contract_address=token_0_address, spender=contract_address, amount=Uint256(amount_to_deposit_user_2, 0))
+    %{ stop_prank() %}
+
+    # Deposit
+    %{ stop_prank = start_prank(context.user_2_address, target_contract_address=ids.contract_address) %}
+    let (total_deposit) = IDefiPooling.deposit(contract_address=contract_address, amount=Uint256(amount_to_deposit_user_2, 0))
+    %{ stop_prank() %}
+
+    # Bridging to L1
+    %{ stop_prank = start_prank(context.deployer_address, target_contract_address=ids.contract_address) %}
+    let (new_deposit_id) = IDefiPooling.deposit_assets_to_l1(contract_address=contract_address)
+    %{ stop_prank() %}
+
+    let (id) = IDefiPooling.current_deposit_id(contract_address=contract_address)
+    assert id = new_deposit_id
+    assert id = 1 # Manual check
+
+    # Note: Skip L1 message handling
+
+    # Distributing shares received from L1 for deposit id 0
+
+    let shares_received = 8 * 10**18
+    %{ stop_prank = start_prank(context.l1_contract, target_contract_address=ids.contract_address) %}
+    let (_l1_contract) = IDefiPooling.l1_contract_address(contract_address=contract_address)
+    # TODO: how to call handle_distribute_share in cairo without needing to update function to @external
+    IDefiPooling.handle_distribute_share(contract_address=contract_address, from_address=_l1_contract, id=0, shares=Uint256(shares_received, 0))
+    %{ stop_prank() %}
+
+    let (assets_per_share_after_deposit_id_0) = IDefiPooling.assets_per_share(contract_address=contract_address)
+
+    ######################################################################
+    ############ Testing mint: Asset per share is set ####################
+    ######################################################################
+
+    # User 1
+    let shares_to_mint_user_1 = 25 * 10**18
+
+    let (total_shares_to_mint_user_1) = uint256_checked_mul(Uint256(shares_to_mint_user_1, 0), assets_per_share_after_deposit_id_0)
+    let (expected_asset_required_to_mint_user_1, _) = uint256_unsigned_div_rem(total_shares_to_mint_user_1, Uint256(PRECISION, 0))
+
+    let (user1_token_0_balance_before) = IERC20.balanceOf(contract_address=token_0_address, account=user_1_address)
+
+    # Approve tokens to DefiPooling
+    %{ stop_prank = start_prank(context.user_1_address, target_contract_address=ids.token_0_address) %}
+    IERC20.approve(contract_address=token_0_address, spender=contract_address, amount=expected_asset_required_to_mint_user_1)
+    %{ stop_prank() %}
+
+    # Minting shares from user 1
+    %{ stop_prank = start_prank(context.user_1_address, target_contract_address=ids.contract_address) %}
+    let (total_deposit) = IDefiPooling.mint(contract_address=contract_address, shares=Uint256(shares_to_mint_user_1, 0))
+    %{ stop_prank() %}
+
+    assert total_deposit = expected_asset_required_to_mint_user_1
+
+    let (user1_token_0_balance) = IERC20.balanceOf(contract_address=token_0_address, account=user_1_address)
+    let (expected_user1_token_0_balance) = uint256_sub(user1_token_0_balance_before, expected_asset_required_to_mint_user_1)
+    assert user1_token_0_balance = expected_user1_token_0_balance
+
+    let (depositors_1) = IDefiPooling.depositors(contract_address=contract_address, deposit_id=id, index=0)
+    assert depositors_1 = user_1_address
+
+    let (deposit_amount_user_1) = IDefiPooling.deposit_amount(contract_address=contract_address, deposit_id=id, depositor=depositors_1)
+    assert deposit_amount_user_1 = expected_asset_required_to_mint_user_1
+
+    # Cancelling deposit
+
+    %{ stop_prank = start_prank(context.user_1_address, target_contract_address=ids.contract_address) %}
+    let (new_total_deposit) = IDefiPooling.cancel_deposit(contract_address=contract_address)
+    %{ stop_prank() %}
+
+    # Verify balances
+
+    let (expected_total_deposit: Uint256) = uint256_sub(total_deposit, expected_asset_required_to_mint_user_1)
+    assert new_total_deposit = expected_total_deposit
+    
+    let (user1_token_0_new_balance) = IERC20.balanceOf(contract_address=token_0_address, account=user_1_address)
+    let (expected_user1_token_0_new_balance: Uint256, _) = uint256_add(user1_token_0_balance, expected_asset_required_to_mint_user_1)
+    assert user1_token_0_new_balance = expected_user1_token_0_new_balance
+
+    # Verifying the depositors amount
+
+    let (deposit_amount_user_1_after_cancel) = IDefiPooling.deposit_amount(contract_address=contract_address, deposit_id=id, depositor=user_1_address)
+    assert deposit_amount_user_1_after_cancel = Uint256(0, 0) # Manual check
 
     return ()
 end
