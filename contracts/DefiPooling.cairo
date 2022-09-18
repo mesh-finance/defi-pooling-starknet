@@ -1086,7 +1086,7 @@ end
 
 # ********* changing to external function for testing*****************
 # TODO: Must change @l1_handler to @external to run any tests
-@external
+@l1_handler
 func handle_distribute_asset{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
@@ -1124,7 +1124,7 @@ func handle_distribute_asset{
 end
 
 # TODO: Must change @l1_handler to @external to run any tests
-@external
+@l1_handler
 func handle_distribute_share{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
