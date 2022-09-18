@@ -49,6 +49,9 @@ namespace IDefiPooling:
     func mint(shares: Uint256) -> (total_deposit: Uint256):
     end
 
+    func redeem(shares: Uint256) -> (total_withdraw: Uint256):
+    end
+
     func cancel_deposit() -> (total_deposit: Uint256):    
     end
 
