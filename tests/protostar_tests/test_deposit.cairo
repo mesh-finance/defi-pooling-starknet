@@ -44,6 +44,9 @@ namespace IDefiPooling:
     func asset() -> (asset: felt):
     end
 
+    func assetsOf(account: felt) -> (assets_of: Uint256):
+    end
+
     func l1_contract_address() -> (l1_contract_address: felt):
     end
 
@@ -272,8 +275,6 @@ func test_deposit{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
     let (new_deposit_id) = IDefiPooling.deposit_assets_to_l1(contract_address=contract_address)
     %{ stop_prank() %}
 
-    # Note: Skip L1 message handling (starknet.send_message_to_l2)
-
     let (id) = IDefiPooling.current_deposit_id(contract_address=contract_address)
     assert id = new_deposit_id
 
@@ -281,14 +282,16 @@ func test_deposit{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
     let (expected_defiPooling_token_0_balance_after_deposit: Uint256) = uint256_sub(defiPooling_token_0_balance_before_deposit, new_total_deposit)
     assert defiPooling_token_0_balance_after_deposit = expected_defiPooling_token_0_balance_after_deposit
 
+    # Note: Skip L1 message handling
+
     # Distributing shares received from L1 for deposit id 0
 
     let shares_received = 80 * 10**18
+    %{ stop_prank = start_prank(context.l1_contract, target_contract_address=ids.contract_address) %}
+    let (_l1_contract) = IDefiPooling.l1_contract_address(contract_address=contract_address)
     # TODO: how to call handle_distribute_share in cairo without needing to update function to @external
-    # %{ stop_prank = start_prank(context.l1_contract, target_contract_address=ids.contract_address) %}
-    # let (_l1_contract) = IDefiPooling.l1_contract_address(contract_address=contract_address)
-    # IDefiPooling.handle_distribute_share(contract_address=contract_address, from_address=_l1_contract, id=id, shares=Uint256(shares_received, 0))
-    # %{ stop_prank() %}
+    IDefiPooling.handle_distribute_share(contract_address=contract_address, from_address=_l1_contract, id=0, shares=Uint256(shares_received, 0))
+    %{ stop_prank() %}
 
     let (assets_per_share) = IDefiPooling.assets_per_share(contract_address=contract_address)
     let (total_shares) = uint256_checked_mul(new_total_deposit, Uint256(PRECISION, 0))
@@ -298,11 +301,25 @@ func test_deposit{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_pt
     let (total_assets) = IDefiPooling.total_assets(contract_address=contract_address)
     assert total_assets = new_total_deposit
 
-    # // Do magic
-
     # Verify shares balance of depositors
 
-    # // Do magic
+    # Depositor 1
+    let (share_balance_depositor_1) = IERC20.balanceOf(contract_address=contract_address, account=depositors_1)
+    let (total_deposit_depositor_1) = uint256_checked_mul(Uint256(shares_received, 0), deposit_amount_user_1)
+    let (expected_share_balance_depositor_1, _) = uint256_unsigned_div_rem(total_deposit_depositor_1, total_deposit_amount)
+    assert share_balance_depositor_1 = expected_share_balance_depositor_1
+
+    let (assets_of_user_1) = IDefiPooling.assetsOf(contract_address=contract_address, account=depositors_1)
+    assert assets_of_user_1 = Uint256(amount_to_deposit_user_1, 0)
+
+    # Depositor 2
+    let (share_balance_depositor_2) = IERC20.balanceOf(contract_address=contract_address, account=depositors_2)
+    let (total_deposit_depositor_2) = uint256_checked_mul(Uint256(shares_received, 0), deposit_amount_user_2)
+    let (expected_share_balance_depositor_2, _) = uint256_unsigned_div_rem(total_deposit_depositor_2, total_deposit_amount)
+    assert share_balance_depositor_2 = expected_share_balance_depositor_2
+
+    let (assets_of_user_2) = IDefiPooling.assetsOf(contract_address=contract_address, account=depositors_2)
+    assert assets_of_user_2 = Uint256(amount_to_deposit_user_2, 0)
 
     return ()
 end
