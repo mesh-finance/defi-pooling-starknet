@@ -4,42 +4,7 @@
 from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
 from starkware.starknet.common.syscalls import get_caller_address, deploy, get_contract_address
 from starkware.cairo.common.uint256 import Uint256
-
-@contract_interface
-namespace IERC20:
-    
-    func name() -> (name: felt):
-    end
-
-    func symbol() -> (symbol: felt):
-    end
-
-    func totalSupply() -> (totalSupply: Uint256):
-    end
-
-    func decimals() -> (decimals: felt):
-    end
-
-    func balanceOf(account: felt) -> (balance: Uint256):
-    end
-
-end
-
-@contract_interface
-namespace IDefiPooling:
-
-    func owner() -> (owner: felt):
-    end
-
-    func asset() -> (asset: felt):
-    end
-
-    func l1_contract_address() -> (l1_contract_address: felt):
-    end
-
-    func token_bridge() -> (token_bridge: felt):
-    end
-end
+from tests.protostar_tests.interfaces import IDefiPooling, ITokenBridge, IERC20
 
 @external
 func test_deployment{syscall_ptr: felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}():
