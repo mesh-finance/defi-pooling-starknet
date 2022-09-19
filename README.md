@@ -7,9 +7,9 @@ Protostar is a StarkNet smart contract development toolchain, which helps you wi
 ### Install Protostar
 
 
-1. Copy and run in a terminal the following command:
+1. Copy and run in a terminal the following command to install protostar 0.3.1:
 ```
-curl -L https://raw.githubusercontent.com/software-mansion/protostar/master/install.sh | bash
+curl -L https://raw.githubusercontent.com/software-mansion/protostar/master/install.sh | bash -s -- -v 0.3.1
 ```
 2. Restart the terminal.
 3. Run `protostar -v` to check Protostar and cairo-lang version.
@@ -20,7 +20,6 @@ Protostar requires version 2.28 or greater of Git.
 
 ### Install Protostar Dependencies
 
-The below command installs the [OpenZeppelin cairo-contarcts](https://github.com/OpenZeppelin/cairo-contracts) repo as a git submodule in the `lib/cairo_contracts` folder.
 ```
 protostar install
 ```
@@ -34,6 +33,9 @@ protostar build
 ```
 protostar test
 ```
+
+#### Note 
+It is not possible to call @l1_handler using Cairo from protostar. To run tests locally, must change @l1_handler to @external in DefiPooling.cairo
 
 ## How to deploy
 1) python3 scripts/deploy.js

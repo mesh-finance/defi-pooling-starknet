@@ -6,7 +6,7 @@ from starkware.cairo.common.uint256 import Uint256, uint256_add, uint256_sub, ui
 from starkware.cairo.common.pow import pow
 from starkware.cairo.common.alloc import alloc
 from contracts.utils.math import uint256_checked_mul
-from tests.protostar_tests.interfaces import IDefiPooling, ITokenBridge, IERC20
+from tests.interfaces import IDefiPooling, ITokenBridge, IERC20
 
 const PRECISION = 1000000000
 
