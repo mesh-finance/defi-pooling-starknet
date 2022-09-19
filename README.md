@@ -1,12 +1,39 @@
 # Defi Pooling Starknet
 
-## Setup Testing
-0. Clone repo
-1. Download protostar 0.3.1
-2. Check your .git/modules folder in the repo's source directory. If there are any modules there from your previous tries remove them using rm -rf. 
-3. Remove any existing .gitmodules file as well. rm .gitmodules
-4. Run protostar install https://github.com/OpenZeppelin/cairo-contracts --name cairo_contracts. Ensure you download OpenZeppelin 0.3.0
-5. Check your lib directory and ensure you have got a new cairo_contracts folder there.
+## Testing and Development
+
+We use [Protostar](https://docs.swmansion.com/protostar/) for our testing and development purposes. 
+Protostar is a StarkNet smart contract development toolchain, which helps you with dependencies management, compiling and testing cairo contracts.
+### Install Protostar
+
+
+1. Copy and run in a terminal the following command:
+```
+curl -L https://raw.githubusercontent.com/software-mansion/protostar/master/install.sh | bash
+```
+2. Restart the terminal.
+3. Run `protostar -v` to check Protostar and cairo-lang version.
+
+#### Note 
+Protostar requires version 2.28 or greater of Git.
+
+
+### Install Protostar Dependencies
+
+The below command installs the [OpenZeppelin cairo-contarcts](https://github.com/OpenZeppelin/cairo-contracts) repo as a git submodule in the `lib/cairo_contracts` folder.
+```
+protostar install
+```
+
+### Compile Contracts
+```
+protostar build
+```
+
+### Run Tests
+```
+protostar test
+```
 
 ## How to deploy
 1) python3 scripts/deploy.js
