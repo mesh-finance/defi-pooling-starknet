@@ -969,47 +969,6 @@ func deposit_assets_to_l1{
     return(id+1)
 end
 
-
-@l1_handler
-func handle_distribute_share{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(from_address : felt, id : felt, shares : Uint256):
-    alloc_locals
-
-    let (distributed_shares: Uint256) = _shares_distributed.read(id)
-
-    let (is_distributed_shares_equals_to_zero) = uint256_eq(distributed_shares, Uint256(0,0))
-    # assert is_distributed_shares_equals_to_zero = 1
-    with_attr error_message("DefiPooling::handle_distribute_share::shares already distributed"):
-        assert is_distributed_shares_equals_to_zero = 1
-        tempvar syscall_ptr = syscall_ptr
-        tempvar pedersen_ptr = pedersen_ptr
-        tempvar range_check_ptr = range_check_ptr
-    end
-
-    let (l1_contract_address) = _l1_contract_address.read()
-    # Make sure the message was sent by the intended L1 contract.
-    # **** bypass for testing*********
-    assert from_address = l1_contract_address
-
-    # Read the total deposit 
-    let (total_deposit_amount) = _total_deposit.read(id)
-    let (depositors_array_len: felt) = _depositors_len.read(id)
-
-    _shares_distributed.write(id,shares)
-
-    let (total_deposit_amount_mul_PRECISION) = uint256_checked_mul(total_deposit_amount, Uint256(PRECISION,0))
-    let (new_assets_per_share, _) = uint256_unsigned_div_rem(total_deposit_amount_mul_PRECISION, shares)
-    _assets_per_share.write(new_assets_per_share)
-
-    _distribute_share(id,depositors_array_len, total_deposit_amount, shares)
-
-    return ()
-end
-
-
 # @notice Withdraw asset from contract, waiting to be bridged back to L2
 # @dev `caller` should have Shares to withdraw
 # @param assets The expected assets to receive on withdrawing
@@ -1126,6 +1085,7 @@ func send_withdrawal_request_to_l1{
 end
 
 # ********* changing to external function for testing*****************
+# TODO: Must change @l1_handler to @external to run any tests
 @l1_handler
 func handle_distribute_asset{
         syscall_ptr : felt*,
@@ -1163,12 +1123,45 @@ func handle_distribute_asset{
     return ()
 end
 
+# TODO: Must change @l1_handler to @external to run any tests
+@l1_handler
+func handle_distribute_share{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(from_address : felt, id : felt, shares : Uint256):
+    alloc_locals
 
+    let (distributed_shares: Uint256) = _shares_distributed.read(id)
 
+    let (is_distributed_shares_equals_to_zero) = uint256_eq(distributed_shares, Uint256(0,0))
+    # assert is_distributed_shares_equals_to_zero = 1
+    with_attr error_message("DefiPooling::handle_distribute_share::shares already distributed"):
+        assert is_distributed_shares_equals_to_zero = 1
+        tempvar syscall_ptr = syscall_ptr
+        tempvar pedersen_ptr = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+    end
 
+    let (l1_contract_address) = _l1_contract_address.read()
+    # Make sure the message was sent by the intended L1 contract.
+    # **** bypass for testing*********
+    assert from_address = l1_contract_address
 
+    # Read the total deposit 
+    let (total_deposit_amount) = _total_deposit.read(id)
+    let (depositors_array_len: felt) = _depositors_len.read(id)
 
+    _shares_distributed.write(id,shares)
 
+    let (total_deposit_amount_mul_PRECISION) = uint256_checked_mul(total_deposit_amount, Uint256(PRECISION,0))
+    let (new_assets_per_share, _) = uint256_unsigned_div_rem(total_deposit_amount_mul_PRECISION, shares)
+    _assets_per_share.write(new_assets_per_share)
+
+    _distribute_share(id,depositors_array_len, total_deposit_amount, shares)
+
+    return ()
+end
 
 # 
 # Internal Defi Pooling
