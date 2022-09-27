@@ -7,9 +7,9 @@ Protostar is a StarkNet smart contract development toolchain, which helps you wi
 ### Install Protostar
 
 
-1. Copy and run in a terminal the following command to install protostar 0.3.1:
+1. Copy and run in a terminal the following command to install protostar 0.4.2:
 ```
-curl -L https://raw.githubusercontent.com/software-mansion/protostar/master/install.sh | bash -s -- -v 0.3.1
+curl -L https://raw.githubusercontent.com/software-mansion/protostar/master/install.sh | bash -s -- -v 0.4.2
 ```
 2. Restart the terminal.
 3. Run `protostar -v` to check Protostar and cairo-lang version.
