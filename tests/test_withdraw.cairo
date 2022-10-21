@@ -128,11 +128,11 @@ func test_withdraw{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_p
 
     // Distributing shares received from L1 for deposit id 0
     let shares_received = 80 * 10**18;
-    %{ stop_prank = start_prank(context.l1_contract, target_contract_address=ids.contract_address) %}
-    let (_l1_contract) = IDefiPooling.l1_contract_address(contract_address=contract_address);
-    // TODO: how to call handle_distribute_share in cairo without needing to update function to @external
-    IDefiPooling.handle_distribute_share(contract_address=contract_address, from_address=_l1_contract, id=0, shares=Uint256(shares_received, 0));
-    %{ stop_prank() %}
+    %{
+        # ID: 0, uint256(shares_received, 0)
+        send_message_to_l2(fn_name="handle_distribute_share", from_address=context.l1_contract, to_address=context.contract_address, payload=[0, ids.shares_received, 0])
+    %}
+
 
     let (assets_per_share_after_deposit) = IDefiPooling.assets_per_share(contract_address=contract_address);
     let (total_shares) = uint256_checked_mul(new_total_deposit, Uint256(PRECISION, 0));
@@ -229,11 +229,11 @@ func test_withdraw{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_p
     IERC20.mint(contract_address=token_0_address, recipient=contract_address, amount=underlying_received);
     %{ stop_prank() %}
 
-    %{ stop_prank = start_prank(context.deployer_address, target_contract_address=ids.contract_address) %}
-    // Handle distribute assets
-    // TODO: how to call handle_distribute_asset in cairo without needing to update function to @external
-    IDefiPooling.handle_distribute_asset(contract_address=contract_address, from_address=_l1_contract, id=0, assets=underlying_received);
-    %{ stop_prank() %}
+    let underlying_received_felt = underlying_received.low;
+    %{
+        # ID: 0, uint256(underlying_received, 0)
+        send_message_to_l2(fn_name="handle_distribute_asset", from_address=context.l1_contract, to_address=context.contract_address, payload=[0, ids.underlying_received_felt, 0])
+    %}
 
     let (assets_per_share_after_withdraw) = IDefiPooling.assets_per_share(contract_address=contract_address);
     let (underlying_received_PRECISION) = uint256_checked_mul(underlying_received, Uint256(PRECISION, 0));
@@ -312,11 +312,10 @@ func test_cancel_withdraw{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_
 
     // Distributing shares received from L1 for deposit id 0
     let shares_received = 80 * 10**18;
-    %{ stop_prank = start_prank(context.l1_contract, target_contract_address=ids.contract_address) %}
-    let (_l1_contract) = IDefiPooling.l1_contract_address(contract_address=contract_address);
-    // TODO: how to call handle_distribute_share in cairo without needing to update function to @external
-    IDefiPooling.handle_distribute_share(contract_address=contract_address, from_address=_l1_contract, id=0, shares=Uint256(shares_received, 0));
-    %{ stop_prank() %}
+    %{
+        # ID: 0, uint256(shares_received, 0)
+        send_message_to_l2(fn_name="handle_distribute_share", from_address=context.l1_contract, to_address=context.contract_address, payload=[0, ids.shares_received, 0])
+    %}
 
     let (assets_per_share_after_deposit) = IDefiPooling.assets_per_share(contract_address=contract_address);
     let (user_1_shares_balance_before) = IERC20.balanceOf(contract_address=contract_address, account=user_1_address);

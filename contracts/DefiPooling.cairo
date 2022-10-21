@@ -1081,8 +1081,6 @@ func send_withdrawal_request_to_l1{
     return(withdraw_id=id+1);
 }
 
-// ********* changing to external function for testing*****************
-// TODO: Must change @l1_handler to @external to run any tests
 @l1_handler
 func handle_distribute_asset{
         syscall_ptr : felt*,
@@ -1120,7 +1118,6 @@ func handle_distribute_asset{
     return ();
 }
 
-// TODO: Must change @l1_handler to @external to run any tests
 @l1_handler
 func handle_distribute_share{
         syscall_ptr : felt*,
@@ -1142,7 +1139,6 @@ func handle_distribute_share{
 
     let (l1_contract_address) = _l1_contract_address.read();
     // Make sure the message was sent by the intended L1 contract.
-    // **** bypass for testing*********
     assert from_address = l1_contract_address;
 
     // Read the total deposit 
