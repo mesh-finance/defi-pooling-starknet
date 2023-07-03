@@ -142,11 +142,11 @@ func test_mint{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     // Distributing shares received from L1 for deposit id 0
 
     let shares_received = 8 * 10**18;
-    %{ stop_prank = start_prank(context.l1_contract, target_contract_address=ids.contract_address) %}
-    let (_l1_contract) = IDefiPooling.l1_contract_address(contract_address=contract_address);
-    // TODO: how to call handle_distribute_share in cairo without needing to update function to @external
-    IDefiPooling.handle_distribute_share(contract_address=contract_address, from_address=_l1_contract, id=0, shares=Uint256(shares_received, 0));
-    %{ stop_prank() %}
+    // Send message to L2 with id: 0
+    %{
+        # ID: 0, uint256(shares_received, 0)
+        send_message_to_l2(fn_name="handle_distribute_share", from_address=context.l1_contract, to_address=context.contract_address, payload=[0, ids.shares_received, 0])
+    %}
 
     let (assets_per_share_after_deposit_id_0) = IDefiPooling.assets_per_share(contract_address=contract_address);
     let (total_assets_after_deposit_id_0) = IDefiPooling.total_assets(contract_address=contract_address);
@@ -237,10 +237,12 @@ func test_mint{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(
     let (new_total_deposit_PRECISION) = uint256_checked_mul(new_total_deposit, Uint256(PRECISION, 0));
     let (shares_received_1, _) = uint256_unsigned_div_rem(new_total_deposit_PRECISION, assets_per_share_after_deposit_id_0);
 
-    %{ stop_prank = start_prank(context.l1_contract, target_contract_address=ids.contract_address) %}
-    // TODO: how to call handle_distribute_share in cairo without needing to update function to @external
-    IDefiPooling.handle_distribute_share(contract_address=contract_address, from_address=_l1_contract, id=1, shares=shares_received_1);
-    %{ stop_prank() %}
+    let shares_received_1_felt = shares_received_1.low;
+    // Send to L2 with ID 1
+    %{
+        # ID: 1, uint256(shares_received, 0)
+        send_message_to_l2(fn_name="handle_distribute_share", from_address=context.l1_contract, to_address=context.contract_address, payload=[1, ids.shares_received_1_felt, 0])
+    %}
 
     let (assets_per_share_after_deposit_id_1) = IDefiPooling.assets_per_share(contract_address=contract_address);
     let (expected_assets_per_share_after_deposit_id_1, _) = uint256_unsigned_div_rem(new_total_deposit_PRECISION, shares_received_1);
@@ -332,11 +334,11 @@ func test_cancel_deposit{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_c
     // Distributing shares received from L1 for deposit id 0
 
     let shares_received = 8 * 10**18;
-    %{ stop_prank = start_prank(context.l1_contract, target_contract_address=ids.contract_address) %}
-    let (_l1_contract) = IDefiPooling.l1_contract_address(contract_address=contract_address);
-    // TODO: how to call handle_distribute_share in cairo without needing to update function to @external
-    IDefiPooling.handle_distribute_share(contract_address=contract_address, from_address=_l1_contract, id=0, shares=Uint256(shares_received, 0));
-    %{ stop_prank() %}
+    // Send message to L2 with id: 0
+    %{
+        # ID: 0, uint256(shares_received, 0)
+        send_message_to_l2(fn_name="handle_distribute_share", from_address=context.l1_contract, to_address=context.contract_address, payload=[0, ids.shares_received, 0])
+    %}
 
     let (assets_per_share_after_deposit_id_0) = IDefiPooling.assets_per_share(contract_address=contract_address);
 
