@@ -1,0 +1,12 @@
+[package]
+name = "DefiPooling"
+version = "1.0.0"
+
+[[target.starknet-contract]]
+sierra = true
+casm = true
+casm-add-pythonic-hints = true
+allowed-libfuncs-list.name = "all"
+
+[dependencies]
+starknet = "2.0.1"
